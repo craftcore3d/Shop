@@ -1,0 +1,732 @@
+"use client";
+
+import Image from "next/image";
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useCart } from "@/lib/cart";
+
+/* ─────────────────────────────────────────────
+   Types
+───────────────────────────────────────────── */
+type Material = "PLA" | "ABS" | "Resin" | "Nylon";
+type Badge = "New" | "Best Seller";
+
+type Product = {
+  id: string;
+  name: string;
+  category: string;
+  material: Material;
+  price: number;
+  rating: number;
+  reviewCount: number;
+  badge?: Badge;
+  image: string;
+  description: string;
+  details: string[];
+  createdAt: number;
+  popularity: number;
+};
+
+type CartToast = { id: string; name: string };
+
+/* ─────────────────────────────────────────────
+   Mock catalogue (swap for Shopify GraphQL)
+───────────────────────────────────────────── */
+const PRODUCTS: Product[] = [
+  {
+    id: "arcadian",
+    name: "Arcadian Miniature Set",
+    category: "Figurines",
+    material: "PLA",
+    price: 58,
+    rating: 4.8,
+    reviewCount: 142,
+    badge: "Best Seller",
+    image: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=900&q=80",
+    description: "3-piece fantasy hero crew engineered with hollow layers for easy painting.",
+    details: ["Hollow-wall construction", "0.1 mm layer resolution", "Pre-primed surface"],
+    createdAt: new Date("2026-06-05").getTime(),
+    popularity: 95,
+  },
+  {
+    id: "aurora",
+    name: "Aurora Hoop Earrings",
+    category: "Jewelry",
+    material: "Resin",
+    price: 118,
+    rating: 4.9,
+    reviewCount: 87,
+    badge: "New",
+    image: "https://images.unsplash.com/photo-1522312346375-d1a52e2b99b3?w=900&q=80",
+    description: "Organic loop hoops printed with polished surfaces and integrated gemstone channels.",
+    details: ["UV-cured resin", "Hypoallergenic posts", "Available in 3 sizes"],
+    createdAt: new Date("2026-06-12").getTime(),
+    popularity: 84,
+  },
+  {
+    id: "luna",
+    name: "Luna Ball Lamp",
+    category: "Home Décor",
+    material: "ABS",
+    price: 184,
+    rating: 4.6,
+    reviewCount: 63,
+    image: "https://images.unsplash.com/photo-1475180098004-ca77a66827be?w=900&q=80",
+    description: "Diffuse, layered globe lamp that slides into a floating wall mount.",
+    details: ["E14 socket", "Shade Ø 22 cm", "Satin white finish"],
+    createdAt: new Date("2026-05-28").getTime(),
+    popularity: 82,
+  },
+  {
+    id: "signet",
+    name: "Regal Signet Ring",
+    category: "Jewelry",
+    material: "PLA",
+    price: 132,
+    rating: 4.7,
+    reviewCount: 201,
+    badge: "Best Seller",
+    image: "https://images.unsplash.com/photo-1490367532201-b9bc1dc483f6?w=900&q=80",
+    description: "Personalized signet ring designed with crisp bevels and layered texturing.",
+    details: ["Custom engraving", "Sizes US 5–13", "Matte & gloss options"],
+    createdAt: new Date("2026-05-20").getTime(),
+    popularity: 88,
+  },
+  {
+    id: "planter",
+    name: "Cascadia Planter Duo",
+    category: "Home Décor",
+    material: "PLA",
+    price: 68,
+    rating: 4.4,
+    reviewCount: 55,
+    badge: "New",
+    image: "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=900&q=80",
+    description: "Nested planters with hidden drainage channels and soft matte finish.",
+    details: ["Drainage hole included", "BPA-free PLA", "Set of 2"],
+    createdAt: new Date("2026-06-01").getTime(),
+    popularity: 65,
+  },
+  {
+    id: "pendant",
+    name: "Azure Pendant",
+    category: "Jewelry",
+    material: "Resin",
+    price: 142,
+    rating: 4.9,
+    reviewCount: 119,
+    badge: "Best Seller",
+    image: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=900&q=80",
+    description: "Layered pendant inspired by alpine lakes with faceted edges.",
+    details: ["925 silver bail", "45 cm chain", "Water-clear resin"],
+    createdAt: new Date("2026-05-30").getTime(),
+    popularity: 92,
+  },
+  {
+    id: "figurine",
+    name: "Mistral Storm Rider",
+    category: "Figurines",
+    material: "PLA",
+    price: 74,
+    rating: 4.2,
+    reviewCount: 38,
+    image: "https://images.unsplash.com/photo-1521372404688-0d18567615d5?w=900&q=80",
+    description: "Limited run storm knight with modular wings and magnetic base.",
+    details: ["Magnetic base Ø 40 mm", "5 interchangeable parts", "Limited to 200 units"],
+    createdAt: new Date("2026-05-10").getTime(),
+    popularity: 71,
+  },
+  {
+    id: "bangle",
+    name: "Solstice Bangle",
+    category: "Jewelry",
+    material: "PLA",
+    price: 98,
+    rating: 4.3,
+    reviewCount: 47,
+    image: "https://images.unsplash.com/photo-1472220625704-91e1462799b2?w=900&q=80",
+    description: "Hybrid bangle that snaps into stackable configurations.",
+    details: ["Snap-fit stack system", "5 colour options", "Wrist 14–18 cm"],
+    createdAt: new Date("2026-06-08").getTime(),
+    popularity: 63,
+  },
+  {
+    id: "sculpt",
+    name: "Aether Sculpture",
+    category: "Home Décor",
+    material: "Resin",
+    price: 168,
+    rating: 4.7,
+    reviewCount: 92,
+    badge: "Best Seller",
+    image: "https://images.unsplash.com/photo-1475180098004-ca77a66827be?w=900&q=80",
+    description: "Ambient sculpture with softly curved ribbons and integrated light slot.",
+    details: ["Accommodates LED strip", "H 28 cm", "Semi-translucent resin"],
+    createdAt: new Date("2026-05-25").getTime(),
+    popularity: 90,
+  },
+  {
+    id: "figurine2",
+    name: "Driftwood Seeker",
+    category: "Figurines",
+    material: "Resin",
+    price: 63,
+    rating: 4.1,
+    reviewCount: 29,
+    image: "https://images.unsplash.com/photo-1521372404688-0d18567615d5?w=900&q=80",
+    description: "Dreamy explorer figure with translucent cloak details.",
+    details: ["Resin cast", "H 12 cm", "Display base included"],
+    createdAt: new Date("2026-04-28").getTime(),
+    popularity: 60,
+  },
+  {
+    id: "lamp",
+    name: "Blossom Desk Lamp",
+    category: "Home Décor",
+    material: "PLA",
+    price: 152,
+    rating: 4.6,
+    reviewCount: 74,
+    badge: "New",
+    image: "https://images.unsplash.com/photo-1475180098004-ca77a66827be?w=900&q=80",
+    description: "Articulated lamp with layered petals and satin finish.",
+    details: ["Touch dimmer", "LED G9 bulb", "Cable 1.8 m"],
+    createdAt: new Date("2026-06-15").getTime(),
+    popularity: 85,
+  },
+  {
+    id: "ring",
+    name: "Orbit Stack Ring",
+    category: "Jewelry",
+    material: "ABS",
+    price: 76,
+    rating: 4.4,
+    reviewCount: 61,
+    image: "https://images.unsplash.com/photo-1490367532201-b9bc1dc483f6?w=900&q=80",
+    description: "Stackable ring set with dynamic bevels for everyday wear.",
+    details: ["Set of 3", "US sizes 5–12", "Gold & silver tones"],
+    createdAt: new Date("2026-05-18").getTime(),
+    popularity: 75,
+  },
+  {
+    id: "vase",
+    name: "Sienna Rod Vase",
+    category: "Home Décor",
+    material: "PLA",
+    price: 54,
+    rating: 4.0,
+    reviewCount: 33,
+    image: "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=900&q=80",
+    description: "Textured vase with rod motif for sculptural floral displays.",
+    details: ["H 30 cm", "Waterproof interior coat", "Terracotta finish"],
+    createdAt: new Date("2026-05-05").getTime(),
+    popularity: 59,
+  },
+  {
+    id: "mini",
+    name: "Nebula Scout Mini",
+    category: "Figurines",
+    material: "Resin",
+    price: 69,
+    rating: 4.2,
+    reviewCount: 41,
+    image: "https://images.unsplash.com/photo-1521372404688-0d18567615d5?w=900&q=80",
+    description: "Sci-fi scout with layered armor plates and magnetic feet.",
+    details: ["Magnetic feet", "H 9 cm", "Articulated arms"],
+    createdAt: new Date("2026-03-29").getTime(),
+    popularity: 58,
+  },
+  {
+    id: "gear",
+    name: "Precision Prototype Gear",
+    category: "Figurines",
+    material: "Nylon",
+    price: 216,
+    rating: 4.5,
+    reviewCount: 22,
+    image: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=900&q=80",
+    description: "High-accuracy gear assembly printed for mechanical validation runs.",
+    details: ["Tolerance ±0.05 mm", "PA12 nylon", "Custom gear ratio on request"],
+    createdAt: new Date("2026-04-30").getTime(),
+    popularity: 76,
+  },
+  {
+    id: "enclosure",
+    name: "Tactile Prototype Enclosure",
+    category: "Home Décor",
+    material: "ABS",
+    price: 246,
+    rating: 4.3,
+    reviewCount: 18,
+    image: "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?w=900&q=80",
+    description: "Snap-fit enclosure concept with integrated channeling for electronics testing.",
+    details: ["Raspberry Pi cutouts", "IP40 rated", "Matte black"],
+    createdAt: new Date("2026-05-15").getTime(),
+    popularity: 74,
+  },
+];
+
+/* ─────────────────────────────────────────────
+   Constants
+───────────────────────────────────────────── */
+const SORT_OPTIONS = [
+  { value: "new", label: "New Arrivals" },
+  { value: "best", label: "Best Sellers" },
+  { value: "priceLow", label: "Price: Low → High" },
+  { value: "priceHigh", label: "Price: High → Low" },
+  { value: "rating", label: "Customer Rating" },
+];
+const ITEMS_PER_PAGE = 12;
+const CAD = new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" });
+
+/* ─────────────────────────────────────────────
+   StarRating
+───────────────────────────────────────────── */
+function StarRating({ rating, count }: { rating: number; count: number }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="flex">
+        {Array.from({ length: 5 }).map((_, i) => {
+          const filled = i < Math.floor(rating);
+          const half = !filled && i < rating;
+          return (
+            <svg
+              key={i}
+              viewBox="0 0 20 20"
+              className={`h-3.5 w-3.5 ${filled ? "text-[#CF7D65]" : half ? "text-[#CF7D65]" : "text-slate-200"}`}
+              fill="currentColor"
+            >
+              {half ? (
+                <>
+                  <defs>
+                    <linearGradient id={`h${i}`}>
+                      <stop offset="50%" stopColor="currentColor" />
+                      <stop offset="50%" stopColor="#e2e8f0" />
+                    </linearGradient>
+                  </defs>
+                  <path
+                    fill={`url(#h${i})`}
+                    d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"
+                  />
+                </>
+              ) : (
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              )}
+            </svg>
+          );
+        })}
+      </div>
+      <span className="text-xs text-slate-400">
+        {rating.toFixed(1)} ({count})
+      </span>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Badge chip
+───────────────────────────────────────────── */
+function BadgeChip({ badge }: { badge: Badge }) {
+  const isNew = badge === "New";
+  return (
+    <span
+      className={`absolute left-3 top-3 z-10 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest ${
+        isNew
+          ? "bg-[#99B4AA] text-white"
+          : "bg-[#CF7D65] text-white"
+      }`}
+    >
+      {badge}
+    </span>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Product card skeleton
+───────────────────────────────────────────── */
+function CardSkeleton() {
+  return (
+    <div className="animate-pulse overflow-hidden rounded-2xl border border-slate-100 bg-white">
+      <div className="h-52 bg-slate-100" />
+      <div className="space-y-2.5 p-4">
+        <div className="h-3 w-1/3 rounded-full bg-slate-100" />
+        <div className="h-4 w-2/3 rounded-full bg-slate-100" />
+        <div className="h-3 w-1/2 rounded-full bg-slate-100" />
+        <div className="flex gap-2 pt-1">
+          <div className="h-8 flex-1 rounded-xl bg-slate-100" />
+          <div className="h-8 flex-1 rounded-xl bg-slate-100" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Quick View modal
+───────────────────────────────────────────── */
+function QuickViewModal({
+  product,
+  onClose,
+  onAddToCart,
+}: {
+  product: Product;
+  onClose: () => void;
+  onAddToCart: (p: Product) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    document.addEventListener("keydown", handler);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", handler);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm"
+      onClick={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        ref={ref}
+        role="dialog"
+        aria-modal="true"
+        aria-label={product.name}
+        className="relative flex w-full max-w-2xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl sm:flex-row"
+      >
+        {/* Image */}
+        <div className="relative h-64 shrink-0 sm:h-auto sm:w-56">
+          <Image
+            src={product.image}
+            alt={product.name}
+            fill
+            className="object-cover"
+            sizes="(max-width: 640px) 100vw, 224px"
+          />
+          {product.badge && <BadgeChip badge={product.badge} />}
+        </div>
+
+        {/* Content */}
+        <div className="flex flex-1 flex-col gap-4 p-6">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-slate-400">{product.category} · {product.material}</p>
+            <h2 className="mt-1 text-2xl font-bold text-[#6B6D43]">{product.name}</h2>
+          </div>
+          <StarRating rating={product.rating} count={product.reviewCount} />
+          <p className="text-sm leading-relaxed text-slate-500">{product.description}</p>
+          <ul className="space-y-1">
+            {product.details.map((d) => (
+              <li key={d} className="flex items-center gap-2 text-xs text-slate-500">
+                <span className="h-1 w-1 rounded-full bg-[#CF7D65]" />
+                {d}
+              </li>
+            ))}
+          </ul>
+          <div className="mt-auto flex items-center justify-between">
+            <p className="text-2xl font-bold text-[#CF7D65]">{CAD.format(product.price)}</p>
+            <button
+              onClick={() => { onAddToCart(product); onClose(); }}
+              className="rounded-2xl bg-[#6B6D43] px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-[#4f5236] active:scale-95"
+            >
+              Add to Cart
+            </button>
+          </div>
+        </div>
+
+        {/* Close */}
+        <button
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-full bg-black/10 text-slate-600 transition hover:bg-black/20"
+        >
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Cart toast
+───────────────────────────────────────────── */
+function CartToast({ name, onDismiss }: { name: string; onDismiss: () => void }) {
+  useEffect(() => {
+    const t = setTimeout(onDismiss, 3200);
+    return () => clearTimeout(t);
+  }, [onDismiss]);
+
+  return (
+    <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl bg-[#6B6D43] px-5 py-3.5 text-sm text-white shadow-2xl">
+      <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0 text-[#ABA66F]" fill="currentColor">
+        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+      </svg>
+      <span><span className="font-semibold">{name}</span> added to cart</span>
+      <button onClick={onDismiss} className="ml-2 opacity-60 hover:opacity-100">
+        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────
+   Main client component
+───────────────────────────────────────────── */
+export default function ShopClient() {
+  const searchParams = useSearchParams();
+  const initialCategory = searchParams.get("category") ?? "";
+
+  const [sortOption, setSortOption] = useState("new");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
+  const [cartToasts, setCartToasts] = useState<CartToast[]>([]);
+  const { addItem } = useCart();
+
+  /* Reset page when sort changes */
+  useEffect(() => { setCurrentPage(1); }, [sortOption]);
+
+  /* Simulate load */
+  useEffect(() => {
+    setIsLoading(true);
+    const t = setTimeout(() => setIsLoading(false), 380);
+    return () => clearTimeout(t);
+  }, [sortOption, currentPage]);
+
+  const addToCart = useCallback((product: Product) => {
+    const toastId = `${product.id}-${Date.now()}`;
+    setCartToasts((prev) => [...prev, { id: toastId, name: product.name }]);
+    addItem({
+      productId: product.id,
+      handle: product.id,
+      name: product.name,
+      price: product.price,
+      image: product.image,
+      selectedColor: "",
+      category: product.category,
+      quantity: 1,
+    });
+  }, [addItem]);
+
+  const dismissToast = useCallback((id: string) => {
+    setCartToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  /* Filter by category from URL param only */
+  const filteredProducts = useMemo(() => {
+    if (!initialCategory) return PRODUCTS;
+    return PRODUCTS.filter((p) => p.category === initialCategory);
+  }, [initialCategory]);
+
+  const sortedProducts = useMemo(() => {
+    const list = [...filteredProducts];
+    switch (sortOption) {
+      case "best": return list.sort((a, b) => b.popularity - a.popularity);
+      case "priceLow": return list.sort((a, b) => a.price - b.price);
+      case "priceHigh": return list.sort((a, b) => b.price - a.price);
+      case "rating": return list.sort((a, b) => b.rating - a.rating);
+      default: return list.sort((a, b) => b.createdAt - a.createdAt);
+    }
+  }, [filteredProducts, sortOption]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedProducts.length / ITEMS_PER_PAGE));
+  const paginatedProducts = sortedProducts.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  const pageNumbers = Array.from({ length: totalPages }, (_, i) => i + 1);
+
+  return (
+    <>
+      {/* Quick View modal */}
+      {quickViewProduct && (
+        <QuickViewModal
+          product={quickViewProduct}
+          onClose={() => setQuickViewProduct(null)}
+          onAddToCart={addToCart}
+        />
+      )}
+
+      {/* Cart toasts */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2">
+        {cartToasts.map((t) => (
+          <CartToast key={t.id} name={t.name} onDismiss={() => dismissToast(t.id)} />
+        ))}
+      </div>
+
+      <main className="min-h-screen bg-[#F2DEC7] px-4 py-10 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          {/* Page header */}
+          <div className="mb-8">
+            <p className="text-xs uppercase tracking-widest text-[#ABA66F]">CraftCore</p>
+            <h1 className="mt-1 text-3xl font-bold text-[#6B6D43] sm:text-4xl">Shop All Products</h1>
+          </div>
+
+          <div>
+            {/* Toolbar */}
+            <div className="mb-5 flex flex-wrap items-center gap-3">
+              {/* Sort */}
+              <div className="ml-auto flex items-center gap-2">
+                  <label htmlFor="sort" className="hidden text-xs font-semibold text-slate-500 sm:block">
+                    Sort
+                  </label>
+                  <select
+                    id="sort"
+                    value={sortOption}
+                    onChange={(e) => setSortOption(e.target.value)}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-[#6B6D43] focus:outline-none focus:ring-2 focus:ring-[#CF7D65]/40"
+                  >
+                    {SORT_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Result count */}
+              <p className="mb-4 text-xs text-slate-400">
+                {sortedProducts.length} {sortedProducts.length === 1 ? "product" : "products"} in catalogue
+              </p>
+
+              {/* Grid */}
+              {isLoading ? (
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                  {Array.from({ length: ITEMS_PER_PAGE }).map((_, i) => <CardSkeleton key={i} />)}
+                </div>
+              ) : paginatedProducts.length === 0 ? (
+                <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-[#E1B8A2] bg-white/60 py-20 text-center">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#F2DEC7]">
+                    <svg viewBox="0 0 24 24" className="h-7 w-7 text-[#CF7D65]" fill="none" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-semibold text-[#6B6D43]">No products found</p>
+                    <p className="mt-1 text-sm text-slate-400">Check back soon for new arrivals</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+                  {paginatedProducts.map((product) => (
+                    <article
+                      key={product.id}
+                      className="group flex flex-col overflow-hidden rounded-2xl border border-slate-100 bg-white transition hover:-translate-y-0.5 hover:shadow-lg"
+                    >
+                      {/* Image */}
+                      <div className="relative overflow-hidden">
+                        <Image
+                          src={product.image}
+                          alt={product.name}
+                          width={400}
+                          height={300}
+                          className="h-52 w-full object-cover transition-transform duration-500 group-hover:scale-[1.06]"
+                        />
+                        {product.badge && <BadgeChip badge={product.badge} />}
+                        {/* Quick view on hover */}
+                        <div className="absolute inset-0 flex items-end justify-center bg-black/0 pb-4 opacity-0 transition-all duration-300 group-hover:bg-black/10 group-hover:opacity-100">
+                          <button
+                            onClick={() => setQuickViewProduct(product)}
+                            className="rounded-xl bg-white px-4 py-2 text-xs font-bold uppercase tracking-widest text-[#6B6D43] shadow-lg transition hover:bg-[#6B6D43] hover:text-white"
+                          >
+                            Quick View
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex flex-1 flex-col gap-2.5 p-4">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-[10px] uppercase tracking-widest text-slate-400">{product.category}</p>
+                            <Link href={`/shop/${product.id}`} className="mt-0.5 block truncate text-sm font-semibold text-slate-800 hover:text-[#6B6D43]">{product.name}</Link>
+                          </div>
+                          <p className="shrink-0 text-sm font-bold text-[#CF7D65]">{CAD.format(product.price)}</p>
+                        </div>
+
+                        <StarRating rating={product.rating} count={product.reviewCount} />
+
+                        <p className="line-clamp-2 text-xs leading-relaxed text-slate-400">{product.description}</p>
+
+                        {/* Material chip */}
+                        <span className="w-fit rounded-full bg-slate-50 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+                          {product.material}
+                        </span>
+
+                        {/* CTAs */}
+                        <div className="mt-auto flex gap-2 pt-1">
+                          <button
+                            onClick={() => setQuickViewProduct(product)}
+                            className="flex-1 rounded-xl border border-slate-200 py-2 text-xs font-semibold text-slate-600 transition hover:border-[#6B6D43] hover:text-[#6B6D43]"
+                          >
+                            Quick View
+                          </button>
+                          <button
+                            onClick={() => addToCart(product)}
+                            className="flex-1 rounded-xl bg-[#6B6D43] py-2 text-xs font-semibold text-white transition hover:bg-[#4f5236] active:scale-95"
+                          >
+                            Add to Cart
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+
+              {/* Pagination */}
+              {!isLoading && totalPages > 1 && (
+                <div className="mt-10 flex flex-wrap items-center justify-center gap-2">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition hover:border-[#6B6D43] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    ← Prev
+                  </button>
+
+                  {pageNumbers.map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => setCurrentPage(n)}
+                      className={`h-9 w-9 rounded-xl text-xs font-bold transition ${
+                        n === currentPage
+                          ? "bg-[#6B6D43] text-white"
+                          : "border border-slate-200 bg-white text-slate-600 hover:border-[#6B6D43]"
+                      }`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-600 transition hover:border-[#6B6D43] disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Next →
+                  </button>
+                </div>
+              )}
+
+              {/* Page info */}
+              {!isLoading && sortedProducts.length > 0 && (
+                <p className="mt-4 text-center text-xs text-slate-400">
+                  Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1}–
+                  {Math.min(currentPage * ITEMS_PER_PAGE, sortedProducts.length)} of{" "}
+                  {sortedProducts.length} products
+                </p>
+              )}
+          </div>
+        </div>
+      </main>
+    </>
+  );
+}

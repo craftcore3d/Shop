@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+/*
+  Brand palette:
+  --teal:        #99B4AA
+  --olive:       #6B6D43
+  --sage:        #ABA66F
+  --terracotta:  #CF7D65  (primary accent)
+  --blush:       #E1B8A2
+  --cream:       #F2DEC7  (lightest)
+*/
+
+:root {
+  --teal: #58b694;
+  --olive: #6b6d43;
+  --sage: #aba66f;
+  --terracotta: #cf7d65;
+  --blush: #f3ad87;
+  --cream: #e5b681;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--cream);
+  color: var(--olive);
+}
