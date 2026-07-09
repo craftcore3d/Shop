@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-
+//Hero section component is great
 /*
   Brand palette (from company color guide):
   #99B4AA  — dusty teal
