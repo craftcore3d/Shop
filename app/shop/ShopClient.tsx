@@ -5,267 +5,15 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useCart } from "@/lib/cart";
+import type { ProductListItem } from "@/lib/shopify";
 
 /* ─────────────────────────────────────────────
    Types
 ───────────────────────────────────────────── */
-type Material = "PLA" | "ABS" | "Resin" | "Nylon";
 type Badge = "New" | "Best Seller";
-
-type Product = {
-  id: string;
-  name: string;
-  category: string;
-  material: Material;
-  price: number;
-  rating: number;
-  reviewCount: number;
-  badge?: Badge;
-  image: string;
-  description: string;
-  details: string[];
-  createdAt: number;
-  popularity: number;
-};
+type Product = ProductListItem & { details: string[]; createdAt: number; popularity: number };
 
 type CartToast = { id: string; name: string };
-
-/* ─────────────────────────────────────────────
-   Mock catalogue (swap for Shopify GraphQL)
-───────────────────────────────────────────── */
-const PRODUCTS: Product[] = [
-  {
-    id: "arcadian",
-    name: "Arcadian Miniature Set",
-    category: "Figurines",
-    material: "PLA",
-    price: 58,
-    rating: 4.8,
-    reviewCount: 142,
-    badge: "Best Seller",
-    image: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=900&q=80",
-    description: "3-piece fantasy hero crew engineered with hollow layers for easy painting.",
-    details: ["Hollow-wall construction", "0.1 mm layer resolution", "Pre-primed surface"],
-    createdAt: new Date("2026-06-05").getTime(),
-    popularity: 95,
-  },
-  {
-    id: "aurora",
-    name: "Aurora Hoop Earrings",
-    category: "Jewelry",
-    material: "Resin",
-    price: 118,
-    rating: 4.9,
-    reviewCount: 87,
-    badge: "New",
-    image: "https://images.unsplash.com/photo-1522312346375-d1a52e2b99b3?w=900&q=80",
-    description: "Organic loop hoops printed with polished surfaces and integrated gemstone channels.",
-    details: ["UV-cured resin", "Hypoallergenic posts", "Available in 3 sizes"],
-    createdAt: new Date("2026-06-12").getTime(),
-    popularity: 84,
-  },
-  {
-    id: "luna",
-    name: "Luna Ball Lamp",
-    category: "Home Décor",
-    material: "ABS",
-    price: 184,
-    rating: 4.6,
-    reviewCount: 63,
-    image: "https://images.unsplash.com/photo-1475180098004-ca77a66827be?w=900&q=80",
-    description: "Diffuse, layered globe lamp that slides into a floating wall mount.",
-    details: ["E14 socket", "Shade Ø 22 cm", "Satin white finish"],
-    createdAt: new Date("2026-05-28").getTime(),
-    popularity: 82,
-  },
-  {
-    id: "signet",
-    name: "Regal Signet Ring",
-    category: "Jewelry",
-    material: "PLA",
-    price: 132,
-    rating: 4.7,
-    reviewCount: 201,
-    badge: "Best Seller",
-    image: "https://images.unsplash.com/photo-1490367532201-b9bc1dc483f6?w=900&q=80",
-    description: "Personalized signet ring designed with crisp bevels and layered texturing.",
-    details: ["Custom engraving", "Sizes US 5–13", "Matte & gloss options"],
-    createdAt: new Date("2026-05-20").getTime(),
-    popularity: 88,
-  },
-  {
-    id: "planter",
-    name: "Cascadia Planter Duo",
-    category: "Home Décor",
-    material: "PLA",
-    price: 68,
-    rating: 4.4,
-    reviewCount: 55,
-    badge: "New",
-    image: "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=900&q=80",
-    description: "Nested planters with hidden drainage channels and soft matte finish.",
-    details: ["Drainage hole included", "BPA-free PLA", "Set of 2"],
-    createdAt: new Date("2026-06-01").getTime(),
-    popularity: 65,
-  },
-  {
-    id: "pendant",
-    name: "Azure Pendant",
-    category: "Jewelry",
-    material: "Resin",
-    price: 142,
-    rating: 4.9,
-    reviewCount: 119,
-    badge: "Best Seller",
-    image: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=900&q=80",
-    description: "Layered pendant inspired by alpine lakes with faceted edges.",
-    details: ["925 silver bail", "45 cm chain", "Water-clear resin"],
-    createdAt: new Date("2026-05-30").getTime(),
-    popularity: 92,
-  },
-  {
-    id: "figurine",
-    name: "Mistral Storm Rider",
-    category: "Figurines",
-    material: "PLA",
-    price: 74,
-    rating: 4.2,
-    reviewCount: 38,
-    image: "https://images.unsplash.com/photo-1521372404688-0d18567615d5?w=900&q=80",
-    description: "Limited run storm knight with modular wings and magnetic base.",
-    details: ["Magnetic base Ø 40 mm", "5 interchangeable parts", "Limited to 200 units"],
-    createdAt: new Date("2026-05-10").getTime(),
-    popularity: 71,
-  },
-  {
-    id: "bangle",
-    name: "Solstice Bangle",
-    category: "Jewelry",
-    material: "PLA",
-    price: 98,
-    rating: 4.3,
-    reviewCount: 47,
-    image: "https://images.unsplash.com/photo-1472220625704-91e1462799b2?w=900&q=80",
-    description: "Hybrid bangle that snaps into stackable configurations.",
-    details: ["Snap-fit stack system", "5 colour options", "Wrist 14–18 cm"],
-    createdAt: new Date("2026-06-08").getTime(),
-    popularity: 63,
-  },
-  {
-    id: "sculpt",
-    name: "Aether Sculpture",
-    category: "Home Décor",
-    material: "Resin",
-    price: 168,
-    rating: 4.7,
-    reviewCount: 92,
-    badge: "Best Seller",
-    image: "https://images.unsplash.com/photo-1475180098004-ca77a66827be?w=900&q=80",
-    description: "Ambient sculpture with softly curved ribbons and integrated light slot.",
-    details: ["Accommodates LED strip", "H 28 cm", "Semi-translucent resin"],
-    createdAt: new Date("2026-05-25").getTime(),
-    popularity: 90,
-  },
-  {
-    id: "figurine2",
-    name: "Driftwood Seeker",
-    category: "Figurines",
-    material: "Resin",
-    price: 63,
-    rating: 4.1,
-    reviewCount: 29,
-    image: "https://images.unsplash.com/photo-1521372404688-0d18567615d5?w=900&q=80",
-    description: "Dreamy explorer figure with translucent cloak details.",
-    details: ["Resin cast", "H 12 cm", "Display base included"],
-    createdAt: new Date("2026-04-28").getTime(),
-    popularity: 60,
-  },
-  {
-    id: "lamp",
-    name: "Blossom Desk Lamp",
-    category: "Home Décor",
-    material: "PLA",
-    price: 152,
-    rating: 4.6,
-    reviewCount: 74,
-    badge: "New",
-    image: "https://images.unsplash.com/photo-1475180098004-ca77a66827be?w=900&q=80",
-    description: "Articulated lamp with layered petals and satin finish.",
-    details: ["Touch dimmer", "LED G9 bulb", "Cable 1.8 m"],
-    createdAt: new Date("2026-06-15").getTime(),
-    popularity: 85,
-  },
-  {
-    id: "ring",
-    name: "Orbit Stack Ring",
-    category: "Jewelry",
-    material: "ABS",
-    price: 76,
-    rating: 4.4,
-    reviewCount: 61,
-    image: "https://images.unsplash.com/photo-1490367532201-b9bc1dc483f6?w=900&q=80",
-    description: "Stackable ring set with dynamic bevels for everyday wear.",
-    details: ["Set of 3", "US sizes 5–12", "Gold & silver tones"],
-    createdAt: new Date("2026-05-18").getTime(),
-    popularity: 75,
-  },
-  {
-    id: "vase",
-    name: "Sienna Rod Vase",
-    category: "Home Décor",
-    material: "PLA",
-    price: 54,
-    rating: 4.0,
-    reviewCount: 33,
-    image: "https://images.unsplash.com/photo-1472214103451-9374bd1c798e?w=900&q=80",
-    description: "Textured vase with rod motif for sculptural floral displays.",
-    details: ["H 30 cm", "Waterproof interior coat", "Terracotta finish"],
-    createdAt: new Date("2026-05-05").getTime(),
-    popularity: 59,
-  },
-  {
-    id: "mini",
-    name: "Nebula Scout Mini",
-    category: "Figurines",
-    material: "Resin",
-    price: 69,
-    rating: 4.2,
-    reviewCount: 41,
-    image: "https://images.unsplash.com/photo-1521372404688-0d18567615d5?w=900&q=80",
-    description: "Sci-fi scout with layered armor plates and magnetic feet.",
-    details: ["Magnetic feet", "H 9 cm", "Articulated arms"],
-    createdAt: new Date("2026-03-29").getTime(),
-    popularity: 58,
-  },
-  {
-    id: "gear",
-    name: "Precision Prototype Gear",
-    category: "Figurines",
-    material: "Nylon",
-    price: 216,
-    rating: 4.5,
-    reviewCount: 22,
-    image: "https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=900&q=80",
-    description: "High-accuracy gear assembly printed for mechanical validation runs.",
-    details: ["Tolerance ±0.05 mm", "PA12 nylon", "Custom gear ratio on request"],
-    createdAt: new Date("2026-04-30").getTime(),
-    popularity: 76,
-  },
-  {
-    id: "enclosure",
-    name: "Tactile Prototype Enclosure",
-    category: "Home Décor",
-    material: "ABS",
-    price: 246,
-    rating: 4.3,
-    reviewCount: 18,
-    image: "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?w=900&q=80",
-    description: "Snap-fit enclosure concept with integrated channeling for electronics testing.",
-    details: ["Raspberry Pi cutouts", "IP40 rated", "Matte black"],
-    createdAt: new Date("2026-05-15").getTime(),
-    popularity: 74,
-  },
-];
 
 /* ─────────────────────────────────────────────
    Constants
@@ -479,9 +227,16 @@ function CartToast({ name, onDismiss }: { name: string; onDismiss: () => void })
 /* ─────────────────────────────────────────────
    Main client component
 ───────────────────────────────────────────── */
-export default function ShopClient() {
+export default function ShopClient({ products: rawProducts }: { products: ProductListItem[] }) {
   const searchParams = useSearchParams();
   const initialCategory = searchParams.get("category") ?? "";
+
+  const PRODUCTS: Product[] = rawProducts.map((p, i) => ({
+    ...p,
+    details: [],
+    createdAt: Date.now() - i * 86400000,
+    popularity: 100 - i,
+  }));
 
   const [sortOption, setSortOption] = useState("new");
   const [currentPage, setCurrentPage] = useState(1);
