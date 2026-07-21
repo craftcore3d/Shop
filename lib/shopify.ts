@@ -193,6 +193,26 @@ export const MOCK_PRODUCTS: ProductDetail[] = [
 ];
 
 /* ─────────────────────────────────────────────
+   Product list type (used by shop page)
+───────────────────────────────────────────── */
+export type ProductListItem = {
+  id: string;
+  name: string;
+  handle: string;
+  variantId: string;
+  category: string;
+  material: string;
+  badge?: "New" | "Best Seller";
+  price: number;
+  compareAtPrice?: number;
+  currency: "CAD";
+  rating: number;
+  reviewCount: number;
+  description: string;
+  image: string;
+};
+
+/* ─────────────────────────────────────────────
    Shopify Storefront GraphQL query
    (used when env vars are present)
 ───────────────────────────────────────────── */
@@ -237,7 +257,7 @@ const PRODUCT_QUERY = /* GraphQL */ `
   }
 `;
 
-async function shopifyFetch<T>(query: string, variables: Record<string, string>): Promise<T> {
+async function shopifyFetch<T>(query: string, variables: Record<string, unknown>): Promise<T> {
   const domain = process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN;
   const token = process.env.SHOPIFY_STOREFRONT_ACCESS_TOKEN;
 
@@ -320,5 +340,106 @@ export async function getProduct(id: string): Promise<ProductDetail | null> {
   } catch {
     // Fall back to mock data
     return MOCK_PRODUCTS.find((p) => p.id === id) ?? null;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   Products list query
+───────────────────────────────────────────── */
+const PRODUCTS_QUERY = /* GraphQL */ `
+  query GetProducts($first: Int!) {
+    products(first: $first) {
+      edges {
+        node {
+          id
+          title
+          handle
+          description
+          priceRange {
+            minVariantPrice { amount currencyCode }
+          }
+          compareAtPriceRange {
+            minVariantPrice { amount currencyCode }
+          }
+          images(first: 1) {
+            edges { node { url altText } }
+          }
+          variants(first: 1) {
+            edges { node { id } }
+          }
+          metafields(
+            identifiers: [
+              { namespace: "custom", key: "badge" }
+              { namespace: "custom", key: "category" }
+              { namespace: "custom", key: "material" }
+            ]
+          ) { key value }
+        }
+      }
+    }
+  }
+`;
+
+export async function getProducts(limit = 50): Promise<ProductListItem[]> {
+  try {
+    const data = await shopifyFetch<{
+      products: {
+        edges: {
+          node: {
+            id: string;
+            title: string;
+            handle: string;
+            description: string;
+            priceRange: { minVariantPrice: { amount: string } };
+            compareAtPriceRange: { minVariantPrice: { amount: string } };
+            images: { edges: { node: { url: string; altText: string } }[] };
+            variants: { edges: { node: { id: string } }[] };
+            metafields: { key: string; value: string }[];
+          };
+        }[];
+      };
+    }>(PRODUCTS_QUERY, { first: limit });
+
+    return data.products.edges.map(({ node: p }) => {
+      const meta = (key: string) =>
+        p.metafields?.filter(Boolean).find((m) => m.key === key)?.value ?? "";
+
+      return {
+        id: p.handle,
+        name: p.title,
+        handle: p.handle,
+        variantId: p.variants.edges[0]?.node.id ?? "",
+        category: meta("category") || "General",
+        material: meta("material") || "PLA",
+        badge: (meta("badge") as ProductListItem["badge"]) || undefined,
+        price: parseFloat(p.priceRange.minVariantPrice.amount),
+        compareAtPrice: p.compareAtPriceRange?.minVariantPrice?.amount
+          ? parseFloat(p.compareAtPriceRange.minVariantPrice.amount)
+          : undefined,
+        currency: "CAD",
+        rating: 0,
+        reviewCount: 0,
+        description: p.description,
+        image: p.images.edges[0]?.node.url ?? "",
+      };
+    });
+  } catch {
+    // Fall back to mock products list
+    return MOCK_PRODUCTS.map((p) => ({
+      id: p.id,
+      name: p.name,
+      handle: p.handle,
+      variantId: "",
+      category: p.category,
+      material: p.material,
+      badge: p.badge,
+      price: p.price,
+      compareAtPrice: p.compareAtPrice,
+      currency: "CAD",
+      rating: p.rating,
+      reviewCount: p.reviewCount,
+      description: p.description[0] ?? "",
+      image: p.images[0]?.url ?? "",
+    }));
   }
 }

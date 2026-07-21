@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import ShopClient from "./ShopClient";
+import { getProducts, type ProductListItem } from "@/lib/shopify";
 
 function ShopSkeleton() {
   return (
@@ -28,10 +29,15 @@ function ShopSkeleton() {
   );
 }
 
+async function ShopWithData() {
+  const products: ProductListItem[] = await getProducts();
+  return <ShopClient products={products} />;
+}
+
 export default function ShopPage() {
   return (
     <Suspense fallback={<ShopSkeleton />}>
-      <ShopClient />
+      <ShopWithData />
     </Suspense>
   );
 }
