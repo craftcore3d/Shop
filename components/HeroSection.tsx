@@ -180,33 +180,6 @@ export default function HeroSection() {
               />
             </svg>
           </Link>
-
-          {/* Secondary — olive outline */}
-          <Link
-            href="/gallery"
-            className="
-              inline-flex items-center gap-2
-              px-8 py-3.5 rounded-sm
-              font-medium text-base tracking-wide
-              transition-all duration-300
-              hover:scale-[1.03] active:scale-[0.98]
-              focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
-            "
-            style={{
-              border: "1.5px solid rgba(107,109,67,0.55)",
-              color: "#6B6D43",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = "#6B6D43";
-              e.currentTarget.style.backgroundColor = "rgba(107,109,67,0.08)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = "rgba(107,109,67,0.55)";
-              e.currentTarget.style.backgroundColor = "transparent";
-            }}
-          >
-            View Gallery
-          </Link>
         </div>
 
         {/* Trust indicators */}
@@ -240,27 +213,6 @@ export default function HeroSection() {
           ))}
         </div>
       </div>
-
-      {/* ── Scroll indicator ── */}
-      <a
-        href="#features"
-        aria-label="Scroll to features"
-        className={`
-          absolute bottom-8 left-1/2 -translate-x-1/2 z-10
-          flex flex-col items-center gap-1.5
-          transition-all duration-700 delay-700 ease-out
-          ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"}
-        `}
-        style={{ color: "#ABA66F" }}
-      >
-        <span className="text-[10px] tracking-[0.25em] uppercase">Scroll</span>
-        <span
-          className="w-px h-8 animate-bounce"
-          style={{
-            background: "linear-gradient(to bottom, rgba(171,166,111,0.6), transparent)",
-          }}
-        />
-      </a>
     </section>
   );
 }

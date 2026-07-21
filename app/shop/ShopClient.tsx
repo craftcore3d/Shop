@@ -259,7 +259,7 @@ export default function ShopClient({ products: rawProducts }: { products: Produc
     const toastId = `${product.id}-${Date.now()}`;
     setCartToasts((prev) => [...prev, { id: toastId, name: product.name }]);
     addItem({
-      productId: product.id,
+      productId: product.variantId || product.id,
       handle: product.id,
       name: product.name,
       price: product.price,
