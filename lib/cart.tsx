@@ -225,11 +225,25 @@ function loadFromStorage(): CartState {
 }
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(reducer, undefined, loadFromStorage);
+  const [state, dispatch] = useReducer(reducer, { items: [], coupon: null, shopifyCartId: null });
   const checkoutUrlRef = useRef<string | null>(null);
+  const hydrated = useRef(false);
+
+  /* Hydrate from localStorage after first mount to avoid SSR mismatch */
+  useEffect(() => {
+    if (hydrated.current) return;
+    hydrated.current = true;
+    const saved = loadFromStorage();
+    if (saved.items.length > 0 || saved.coupon || saved.shopifyCartId) {
+      dispatch({ type: "SET_ITEMS", items: saved.items });
+      if (saved.coupon) dispatch({ type: "APPLY_COUPON", coupon: saved.coupon });
+      if (saved.shopifyCartId) dispatch({ type: "SET_SHOPIFY_CART_ID", id: saved.shopifyCartId });
+    }
+  }, []);
 
   /* Persist to localStorage whenever cart changes */
   useEffect(() => {
+    if (!hydrated.current) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {

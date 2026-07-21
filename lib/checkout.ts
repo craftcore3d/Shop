@@ -96,7 +96,8 @@ async function storefrontFetch<T>(
       },
       body: JSON.stringify({ query, variables }),
     });
-    const json = (await res.json()) as { data: T };
+    const json = (await res.json()) as { data: T; errors?: unknown };
+    console.log("[checkout] API response:", JSON.stringify(json).slice(0, 300));
     return json.data;
   } catch {
     return null;
@@ -109,6 +110,10 @@ async function storefrontFetch<T>(
 export async function createCheckoutUrl(items: CartItem[]): Promise<string | null> {
   if (items.length === 0) return null;
 
+  console.log("[checkout] items:", items.map(i => ({ id: i.productId, name: i.name })));
+  console.log("[checkout] domain:", process.env.NEXT_PUBLIC_SHOPIFY_STORE_DOMAIN);
+  console.log("[checkout] token:", process.env.NEXT_PUBLIC_SHOPIFY_STOREFRONT_ACCESS_TOKEN?.slice(0, 6) + "...");
+
   const lines = items.map((item) => ({
     merchandiseId: item.productId.startsWith("gid://")
       ? item.productId
@@ -118,6 +123,8 @@ export async function createCheckoutUrl(items: CartItem[]): Promise<string | nul
       ? [{ key: "Colour", value: item.selectedColor }]
       : [],
   }));
+
+  console.log("[checkout] lines:", lines);
 
   const confirmationUrl =
     process.env.NEXT_PUBLIC_SITE_URL
