@@ -278,7 +278,7 @@ export default function ShopClient({ products: rawProducts }: { products: Produc
   const filteredProducts = useMemo(() => {
     if (!initialCategory) return PRODUCTS;
     return PRODUCTS.filter((p) => p.category === initialCategory);
-  }, [initialCategory]);
+  }, [initialCategory, PRODUCTS]);
 
   const sortedProducts = useMemo(() => {
     const list = [...filteredProducts];
