@@ -31,6 +31,8 @@ export type Review = {
 
 export type ProductDetail = {
   id: string;
+  /** Shopify ProductVariant GID — used as merchandiseId when creating a cart */
+  variantId?: string;
   name: string;
   handle: string;
   category: string;
@@ -300,6 +302,7 @@ export async function getProduct(id: string): Promise<ProductDetail | null> {
       priceRange: { minVariantPrice: { amount: string } };
       compareAtPriceRange: { minVariantPrice: { amount: string } };
       images: { edges: { node: { url: string; altText: string } }[] };
+      variants: { edges: { node: { id: string } }[] };
       metafields: { key: string; value: string }[];
     };
 
@@ -308,6 +311,7 @@ export async function getProduct(id: string): Promise<ProductDetail | null> {
 
     return {
       id,
+      variantId: p.variants?.edges[0]?.node.id,
       name: p.title,
       handle: p.handle,
       category: meta("category") || "General",
