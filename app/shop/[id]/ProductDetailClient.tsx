@@ -269,7 +269,7 @@ export default function ProductDetailClient({ product }: { product: ProductDetai
 
   const handleAddToCart = () => {
     addItem({
-      productId: product.id,
+      productId: product.variantId || product.id,
       handle: product.handle,
       name: product.name,
       price: product.price,
